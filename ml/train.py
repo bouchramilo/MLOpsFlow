@@ -29,7 +29,7 @@ MODEL_PATH = os.path.join(BASE_DIR, "models", "model.pkl")
 EXPERIMENT_NAME = "Diabetes_Prediction_MLOps"
 MODEL_NAME = "DiabetesRiskModel"
 
-mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
 mlflow.set_experiment(EXPERIMENT_NAME)
 
 
@@ -83,42 +83,46 @@ def train():
         verbose=1
     )
 
-    with mlflow.start_run():
+    # -------- TRAIN
+    grid_search.fit(X_train_resampled, y_train_resampled)
 
-        # -------- TRAIN
-        grid_search.fit(X_train_resampled, y_train_resampled)
+    best_model = grid_search.best_estimator_
+    best_params = grid_search.best_params_
 
-        best_model = grid_search.best_estimator_
-        best_params = grid_search.best_params_
+    # -------- PREDICTION
+    y_pred = best_model.predict(X_test)
+    y_proba = best_model.predict_proba(X_test)[:, 1]
 
-        # -------- PREDICTION
-        y_pred = best_model.predict(X_test)
-        y_proba = best_model.predict_proba(X_test)[:, 1]
+    # -------- METRICS
+    accuracy = accuracy_score(y_test, y_pred)
+    recall = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    roc_auc = roc_auc_score(y_test, y_proba)
+    
+    # -------- SAVE LOCAL MODEL
+    joblib.dump(best_model, MODEL_PATH)
+    print(f"Model saved locally to {MODEL_PATH}")
 
-        # -------- METRICS
-        accuracy = accuracy_score(y_test, y_pred)
-        recall = recall_score(y_test, y_pred)
-        f1 = f1_score(y_test, y_pred)
-        roc_auc = roc_auc_score(y_test, y_proba)
+    try:
+        with mlflow.start_run():
+            # -------- LOG PARAMS
+            mlflow.log_params(best_params)
 
-        # -------- LOG PARAMS
-        mlflow.log_params(best_params)
+            # -------- LOG METRICS
+            mlflow.log_metric("accuracy", accuracy)
+            mlflow.log_metric("recall", recall)
+            mlflow.log_metric("f1_score", f1)
+            mlflow.log_metric("roc_auc", roc_auc)
 
-        # -------- LOG METRICS
-        mlflow.log_metric("accuracy", accuracy)
-        mlflow.log_metric("recall", recall)
-        mlflow.log_metric("f1_score", f1)
-        mlflow.log_metric("roc_auc", roc_auc)
+            # -------- REGISTER MODEL
+            mlflow.sklearn.log_model(
+                sk_model=best_model,
+                name="model",
+                registered_model_name=MODEL_NAME
+            )
+    except Exception as e:
+        print(f"MLflow logging failed: {e}")
 
-        # -------- REGISTER MODEL
-        mlflow.sklearn.log_model(
-            sk_model=best_model,
-            name="model",
-            registered_model_name=MODEL_NAME
-        )
-
-        # -------- SAVE LOCAL MODEL
-        joblib.dump(best_model, MODEL_PATH)
 
         # =========================
         # MODEL REGISTRY LOGIC
