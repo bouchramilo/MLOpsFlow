@@ -1,6 +1,7 @@
 import os
 import mlflow
 import mlflow.pyfunc
+import mlflow.sklearn
 from typing import Optional, Tuple, Any
 import logging
 
@@ -12,6 +13,7 @@ class ModelLoader:
     
     def __init__(self):
         self.model: Optional[Any] = None
+        self.sklearn_model: Optional[Any] = None 
         self.model_version: Optional[str] = None
         self.model_name: str = os.getenv("MLFLOW_MODEL_NAME", "diabetes-prediction-model")
         self.model_stage: str = os.getenv("MLFLOW_MODEL_STAGE", "Production")
@@ -27,7 +29,8 @@ class ModelLoader:
             logger.info(f"Attempting to load model from: {model_uri}")
             
             try:
-                self.model = mlflow.pyfunc.load_model(model_uri)
+                self.sklearn_model = mlflow.sklearn.load_model(model_uri)
+                self.model = self.sklearn_model
                 self.model_version = self.model_stage
                 logger.info(f"Successfully loaded model '{self.model_name}' from stage '{self.model_stage}'")
                 return True, f"Model loaded successfully from {model_uri}"
@@ -36,7 +39,8 @@ class ModelLoader:
                 
                 try:
                     model_uri = f"models:/{self.model_name}/latest"
-                    self.model = mlflow.pyfunc.load_model(model_uri)
+                    self.sklearn_model = mlflow.sklearn.load_model(model_uri)
+                    self.model = self.sklearn_model
                     self.model_version = "latest"
                     logger.info(f"Successfully loaded latest version of model '{self.model_name}'")
                     return True, f"Model loaded successfully from {model_uri}"
@@ -45,7 +49,8 @@ class ModelLoader:
                     
                     local_model_path = os.getenv("LOCAL_MODEL_PATH")
                     if local_model_path and os.path.exists(local_model_path):
-                        self.model = mlflow.pyfunc.load_model(local_model_path)
+                        self.sklearn_model = mlflow.sklearn.load_model(local_model_path)
+                        self.model = self.sklearn_model
                         self.model_version = "local"
                         logger.info(f"Successfully loaded model from local path: {local_model_path}")
                         return True, f"Model loaded from local path: {local_model_path}"
@@ -67,14 +72,13 @@ class ModelLoader:
             raise ValueError("Model not loaded. Please load the model first.")
         
         try:
-            if hasattr(self.model, '_model_impl'):
-                sklearn_model = self.model._model_impl.python_model
-                if hasattr(sklearn_model, 'predict_proba'):
-                    return sklearn_model.predict_proba(data)
+            if hasattr(self.model, 'predict_proba'):
+                return self.model.predict_proba(data)
             
-            unwrapped = self.model.unwrap_python_model() if hasattr(self.model, 'unwrap_python_model') else None
-            if unwrapped and hasattr(unwrapped, 'predict_proba'):
-                return unwrapped.predict_proba(data)
+            if hasattr(self.model, 'named_steps'):
+                for step_name, step in self.model.named_steps.items():
+                    if hasattr(step, 'predict_proba'):
+                        return self.model.predict_proba(data)
                 
         except Exception as e:
             logger.warning(f"Could not get prediction probabilities: {e}")

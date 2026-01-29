@@ -85,9 +85,16 @@ def train():
         mlflow.log_metric("Recall", recall)
         mlflow.log_metric("f1_score", f1)
         
-        mlflow.sklearn.log_model(pipeline, "model")
+        # Register model in MLflow Model Registry
+        model_info = mlflow.sklearn.log_model(
+            pipeline, 
+            "model",
+            registered_model_name="diabetes-prediction-model"
+        )
+        print(f"Model registered in MLflow Model Registry: diabetes-prediction-model")
+        print(f"Model URI: {model_info.model_uri}")
         
-        print(f"Saving pipeline : ")
+        print(f"Saving pipeline locally: ")
         joblib.dump(pipeline, MODEL_PATH)
         
         print("Training complete")
