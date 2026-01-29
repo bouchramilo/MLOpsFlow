@@ -99,29 +99,68 @@ def train():
     f1 = f1_score(y_test, y_pred)
     roc_auc = roc_auc_score(y_test, y_proba)
     
-    # -------- SAVE LOCAL MODEL
-    joblib.dump(best_model, MODEL_PATH)
-    print(f"Model saved locally to {MODEL_PATH}")
+    mlflow.set_experiment("Diabetes_Prediction")
+    
+    with mlflow.start_run():
+        # Hyperparams de modele
+        n_estimators = 100
+        min_samples_split = 10
+        min_samples_leaf = 2
+        max_features = "sqrt"
+        max_depth = 5
+        
+        mlflow.log_param("n_estimators", n_estimators)
+        mlflow.log_param("min_samples_split", min_samples_split)
+        mlflow.log_param("min_samples_leaf", min_samples_leaf)
+        mlflow.log_param("max_features", max_features)
+        mlflow.log_param("max_depth", max_depth)
+        
+        # pipline de entrainement
+        pipeline = Pipeline([
+            ('scaler', StandardScaler()),
+            ('model', RandomForestClassifier(
+                n_estimators=n_estimators,
+                min_samples_split=min_samples_split,
+                min_samples_leaf=min_samples_leaf,
+                max_features=max_features,
+                max_depth=max_depth                
+            ))
+        ])
+        
+        
+        # entrainenmt pipeline
+        pipeline.fit(X_train_resampled, y_train_resampled)
+        
+        
+        # Evaluation de model
+        y_pred = pipeline.predict(X_test)
+        
+        accuracy = accuracy_score(y_test, y_pred)
+        recall = recall_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+        
+        print(f"Accuracy : {accuracy:.4f}")
+        print(f"Recall : {recall:.4f}")
+        print(f"f1_score : {f1:.4f}")
+        
+        mlflow.log_metric("Accuracy", accuracy)
+        mlflow.log_metric("Recall", recall)
+        mlflow.log_metric("f1_score", f1)
+        
+        # Register model in MLflow Model Registry
+        model_info = mlflow.sklearn.log_model(
+            pipeline, 
+            "model",
+            registered_model_name="diabetes-prediction-model"
+        )
+        print(f"Model registered in MLflow Model Registry: diabetes-prediction-model")
+        print(f"Model URI: {model_info.model_uri}")
+        
+        print(f"Saving pipeline locally: ")
+        joblib.dump(pipeline, MODEL_PATH)
+        
+        print("Training complete")
 
-    try:
-        with mlflow.start_run():
-            # -------- LOG PARAMS
-            mlflow.log_params(best_params)
-
-            # -------- LOG METRICS
-            mlflow.log_metric("accuracy", accuracy)
-            mlflow.log_metric("recall", recall)
-            mlflow.log_metric("f1_score", f1)
-            mlflow.log_metric("roc_auc", roc_auc)
-
-            # -------- REGISTER MODEL
-            mlflow.sklearn.log_model(
-                sk_model=best_model,
-                name="model",
-                registered_model_name=MODEL_NAME
-            )
-    except Exception as e:
-        print(f"MLflow logging failed: {e}")
 
 
         # =========================
