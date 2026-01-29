@@ -1,1 +1,39 @@
-# docker-compose
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: mlops-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - MLFLOW_TRACKING_URI=sqlite:///mlflow.db
+    restart: always
+
+  prometheus:
+    image: prom/prometheus
+    container_name: mlops-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    restart: always
+
+  grafana:
+    image: grafana/grafana
+    container_name: mlops-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    restart: always
+
+volumes:
+  grafana_data:

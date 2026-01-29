@@ -1,0 +1,13 @@
+__pycache__
+venv
+.git
+.env
+mlruns
+mlartifacts
+.pytest_cache
+*.pyc
+*.pyo
+*.pyd
+.coverage
+htmlcov
+.github
