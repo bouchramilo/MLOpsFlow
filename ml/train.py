@@ -27,7 +27,7 @@ DATA_PATH = os.path.join(BASE_DIR, "data", "dataset-diabete-processed.csv")
 MODEL_PATH = os.path.join(BASE_DIR, "models", "model.pkl")
 
 EXPERIMENT_NAME = "Diabetes_Prediction_MLOps"
-MODEL_NAME = "DiabetesRiskModel"
+MODEL_NAME = "diabetes-prediction-model"
 
 mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
 mlflow.set_experiment(EXPERIMENT_NAME)
@@ -151,7 +151,7 @@ def train():
         model_info = mlflow.sklearn.log_model(
             pipeline, 
             "model",
-            registered_model_name="diabetes-prediction-model"
+            registered_model_name=MODEL_NAME
         )
         print(f"Model registered in MLflow Model Registry: diabetes-prediction-model")
         print(f"Model URI: {model_info.model_uri}")
