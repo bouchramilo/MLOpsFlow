@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import os
-from sklearn.discriminant_analysis import StandardScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.impute import KNNImputer
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
