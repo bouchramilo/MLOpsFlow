@@ -142,6 +142,13 @@ async def get_model_info():
     return model_loader.get_model_info()
 
 
+@app.get("/metrics", tags=["Monitoring"])
+async def metrics():
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from fastapi.responses import Response
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 @app.post("/predict", response_model=PredictionResponse, tags=["Prediction"])
 async def predict(input_data: DiabetesInput):
     start_time = time.time()
