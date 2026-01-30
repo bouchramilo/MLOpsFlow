@@ -1,0 +1,47 @@
+groups:
+- name: mlops-alerts
+  rules:
+  - alert: APIHighErrorRate
+    expr: rate(prediction_requests_total{status="error"}[5m]) > 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "High error rate on API"
+      description: "API is returning errors for more than 0 requests per second over 5 minutes."
+
+  - alert: APIHighLatency
+    expr: histogram_quantile(0.95, sum(rate(prediction_latency_seconds_bucket[5m])) by (le)) > 1
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High latency on API"
+      description: "P95 latency is above 1 second over 5 minutes."
+
+  - alert: InstanceDown
+    expr: up{job="api"} == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "API instance is down"
+      description: "The API instance has been down for more than 1 minute."
+
+  - alert: ModelNotLoaded
+    expr: model_loaded == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "ML Model not loaded"
+      description: "The ML model is not loaded in the API container."
+  
+  - alert: PredictionsNomber
+    expr: sum(prediction_requests_total) == 10
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "lot of prediction"
+      description: "the prediction."
